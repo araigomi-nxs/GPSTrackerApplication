@@ -1,6 +1,7 @@
 package com.example.gpstrackerapplication;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
@@ -8,6 +9,7 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,7 +33,8 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_FINE_LOCATION =99 ;
-    TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address;
+    TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address, tv_wp;
+    Button bt_wp, bt_showp, bt_showmap;
     Switch sw_locationupdates, sw_gps;
 
     private static final int DEFAULT_UPDATE_INTERVAL = 30;
@@ -39,6 +42,8 @@ public class MainActivity extends AppCompatActivity {
 
 
     boolean updateOn = false;
+    Location currentLocation;
+    List <Location> savedLocations;
 
 
     LocationRequest locationRequest;
@@ -68,6 +73,12 @@ public class MainActivity extends AppCompatActivity {
         sw_locationupdates = findViewById(R.id.sw_locationsupdates);
         sw_gps = findViewById(R.id.sw_gps);
 
+        tv_wp=findViewById(R.id.tv_wp);
+        bt_wp=findViewById(R.id.bt_wp);
+        bt_showp= findViewById(R.id.bt_showp);
+        bt_showmap= findViewById(R.id.bt_showmap);
+
+
 
         locationRequest = buildLocationRequest(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
         locationCallback=new LocationCallback() {
@@ -81,6 +92,30 @@ public class MainActivity extends AppCompatActivity {
 
 
         }};
+
+        bt_wp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                MyApplication myApplication = (MyApplication) getApplicationContext();
+                savedLocations =myApplication.getMyLocations();
+                savedLocations.add(currentLocation);
+
+            }
+        });
+        bt_showp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, SavedLocationList.class);
+                startActivity(intent);
+            }
+        });
+        bt_showmap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
+                startActivity(intent);
+            }
+        });
 
         sw_gps.setOnClickListener(new View.OnClickListener()
         {
@@ -170,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onSuccess(Location location) {
                     if (location != null) {
                         updateUComponents(location);
+                        currentLocation = location;
                     } else {
                         tv_lat.setText("Location not available");
                     }
@@ -226,5 +262,12 @@ public class MainActivity extends AppCompatActivity {
         {
             tv_address.setText("N/A");
         }
+
+
+        MyApplication myApplication = (MyApplication) getApplicationContext();
+        savedLocations =myApplication.getMyLocations();
+
+        tv_wp.setText(String.valueOf(savedLocations.size()));
+
     }
 }
