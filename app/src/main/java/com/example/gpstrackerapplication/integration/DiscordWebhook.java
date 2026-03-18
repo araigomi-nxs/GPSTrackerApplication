@@ -1,4 +1,4 @@
-package com.example.gpstrackerapplication;
+package com.example.gpstrackerapplication.integration;
 
 import android.os.AsyncTask;
 import android.util.Log;
@@ -14,33 +14,33 @@ public class DiscordWebhook {
 
     private final String webhookUrl;
 
-
     public DiscordWebhook(String webhookUrl) {
         this.webhookUrl = webhookUrl;
     }
 
     public void sendLocation(double lat, double lon, String address) {
-        new SendWebhookTask().execute(lat, lon, address);
+        String message = "📍 **New Location Update**\n" +
+                "**Address:** " + address + "\n" +
+                "**Coordinates:** " + lat + ", " + lon + "\n" +
+                "**Google Maps:** https://www.google.com/maps/search/?api=1&query=" + lat + "," + lon;
+        sendMessage(message);
     }
 
-    private class SendWebhookTask extends AsyncTask<Object, Void, Void> {
+    public void sendMessage(String message) {
+        new SendWebhookTask().execute(message);
+    }
+
+    private class SendWebhookTask extends AsyncTask<String, Void, Void> {
         @Override
-        protected Void doInBackground(Object... params) {
+        protected Void doInBackground(String... params) {
             try {
-                double lat = (double) params[0];
-                double lon = (double) params[1];
-                String address = (String) params[2];
+                String message = params[0];
 
                 URL url = new URL(webhookUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json");
                 connection.setDoOutput(true);
-
-                String message = "📍 **New Location Update**\n" +
-                        "**Address:** " + address + "\n" +
-                        "**Coordinates:** " + lat + ", " + lon + "\n" +
-                        "**Google Maps:** https://www.google.com/maps/search/?api=1&query=" + lat + "," + lon;
 
                 JSONObject json = new JSONObject();
                 json.put("content", message);

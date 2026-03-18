@@ -20,6 +20,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.gpstrackerapplication.database.DatabaseHelper;
+import com.example.gpstrackerapplication.integration.DiscordWebhook;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -28,20 +30,22 @@ import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_FINE_LOCATION = 99;
-    TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address, tv_wp;
+    TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address, tv_wp, tv_discord_status, tv_time;
     Button bt_wp, bt_showp, bt_showmap;
-    SwitchMaterial sw_locationupdates, sw_gps;
+    SwitchMaterial sw_locationupdates, sw_gps, sw_discord;
 
     private static final int DEFAULT_UPDATE_INTERVAL = 5;
     private static final int FASTEST_UPDATE_INTERVAL = 2;
 
 
     Location currentLocation;
-    List<Location> savedLocations;
 
     LocationRequest locationRequest;
     LocationCallback locationCallback;
@@ -49,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
 
     private DiscordWebhook discordWebhook;
     private static final String DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1483553823980257330/YNA4dBeRu_Q3ILbj2-cT6ep1eq6Wi9EdRo8g7uCt2POnamQ4oRtt7Be8Q27h75ZLtNES";
+
+    // SQLite Database
+    private DatabaseHelper databaseHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,8 +76,12 @@ public class MainActivity extends AppCompatActivity {
         tv_sensor = findViewById(R.id.tv_sensor);
         tv_updates = findViewById(R.id.tv_updates);
         tv_address = findViewById(R.id.tv_address);
+        tv_time = findViewById(R.id.tv_time);
         sw_locationupdates = findViewById(R.id.sw_locationsupdates);
         sw_gps = findViewById(R.id.sw_gps);
+        
+        sw_discord = findViewById(R.id.sw_discord);
+        tv_discord_status = findViewById(R.id.tv_discord_status);
 
         tv_wp = findViewById(R.id.tv_wp);
         bt_wp = findViewById(R.id.bt_wp);
@@ -78,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
         bt_showmap = findViewById(R.id.bt_showmap);
 
         discordWebhook = new DiscordWebhook(DISCORD_WEBHOOK_URL);
+        databaseHelper = new DatabaseHelper(MainActivity.this);
 
         locationRequest = buildLocationRequest(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
         locationCallback = new LocationCallback() {
@@ -88,11 +100,13 @@ public class MainActivity extends AppCompatActivity {
                 if (location != null) {
                     updateUComponents(location);
                     
-                    discordWebhook.sendLocation(
-                            location.getLatitude(),
-                            location.getLongitude(),
-                            tv_address.getText().toString()
-                    );
+                    if (sw_discord.isChecked()) {
+                        discordWebhook.sendLocation(
+                                location.getLatitude(),
+                                location.getLongitude(),
+                                tv_address.getText().toString()
+                        );
+                    }
                 }
             }
         };
@@ -100,10 +114,13 @@ public class MainActivity extends AppCompatActivity {
         bt_wp.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                MyApplication myApplication = (MyApplication) getApplicationContext();
-                savedLocations = myApplication.getMyLocations();
                 if (currentLocation != null) {
-                    savedLocations.add(currentLocation);
+                    // Save to SQLite
+                    boolean success = databaseHelper.addOne(currentLocation);
+                    if (success) {
+                        Toast.makeText(MainActivity.this, "Location saved to Database", Toast.LENGTH_SHORT).show();
+                    }
+                    
                     updateUComponents(currentLocation);
                 } else {
                     Toast.makeText(MainActivity.this, "Location not available", Toast.LENGTH_SHORT).show();
@@ -155,8 +172,32 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        
+        sw_discord.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (sw_discord.isChecked()) {
+                    tv_discord_status.setText("On");
+                    discordWebhook.sendMessage("🟢 **Discord Integration Enabled**\nLocation updates will now be sent to this channel.");
+                } else {
+                    tv_discord_status.setText("Off");
+                    discordWebhook.sendMessage("🔴 **Discord Integration Disabled**\nLocation updates have been paused.");
+                }
+            }
+        });
 
         updateGPS();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Update counter when returning from other activities
+        if (currentLocation != null) {
+            updateUComponents(currentLocation);
+        } else {
+            tv_wp.setText(String.valueOf(databaseHelper.getCount()));
+        }
     }
 
     private void stopLocationUpdates() {
@@ -167,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         tv_accuracy.setText("NTL");
         tv_speed.setText("NTL");
         tv_address.setText("NTL");
-        tv_sensor.setText("NTL");
+        tv_time.setText("—:—");
 
         if (fusedLocationProviderClient != null) {
             fusedLocationProviderClient.removeLocationUpdates(locationCallback);
@@ -257,8 +298,11 @@ public class MainActivity extends AppCompatActivity {
             tv_address.setText("N/A");
         }
 
-        MyApplication myApplication = (MyApplication) getApplicationContext();
-        savedLocations = myApplication.getMyLocations();
-        tv_wp.setText(String.valueOf(savedLocations.size()));
+        // Update time
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        String currentTime = sdf.format(new Date(location.getTime()));
+        tv_time.setText(currentTime);
+
+        tv_wp.setText(String.valueOf(databaseHelper.getCount()));
     }
 }

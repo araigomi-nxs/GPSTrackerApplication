@@ -29,7 +29,6 @@
             android:textStyle="bold"
             android:fontFamily="monospace"
             android:gravity="center"
-            android:background="@drawable/bg_circle_blue"
             android:layout_marginEnd="14dp" />
 
         <LinearLayout
@@ -58,13 +57,13 @@
                 android:layout_marginTop="3dp" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="›"
-            android:textColor="#1A2840"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+        <ImageButton
+            android:id="@+id/btn_delete_waypoint"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="#FF4B4B" />
 
     </LinearLayout>
 
