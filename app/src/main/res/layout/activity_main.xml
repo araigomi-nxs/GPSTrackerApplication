@@ -24,6 +24,8 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"
             android:layout_marginBottom="20dp">
 
             <LinearLayout
@@ -509,6 +511,8 @@
             app:backgroundTint="#3B8BFF"
             app:cornerRadius="16dp"
             app:elevation="0dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"
             android:layout_marginBottom="10dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -525,6 +529,8 @@
             app:strokeWidth="1.5dp"
             app:cornerRadius="16dp"
             app:elevation="0dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"
             android:layout_marginBottom="10dp"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
@@ -539,7 +545,9 @@
             android:letterSpacing="0.05"
             app:backgroundTint="#3DD68C"
             app:cornerRadius="16dp"
-            app:elevation="0dp" />
+            app:elevation="0dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"/>
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
