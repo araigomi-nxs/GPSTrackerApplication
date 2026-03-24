@@ -571,6 +571,41 @@
             android:layout_height="0dp" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/bt_close_app"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Close Application"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            app:backgroundTint="#FF5252"
+            app:cornerRadius="16dp"
+            app:elevation="0dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"
+            android:layout_marginBottom="10dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/bt_route_list"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Route Collection"
+            android:textColor="#FF9800"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            app:backgroundTint="#0D1626"
+            app:strokeColor="#FF9800"
+            app:strokeWidth="1.5dp"
+            app:cornerRadius="16dp"
+            app:elevation="0dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"
+            android:layout_marginBottom="10dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/bt_wp"
             android:layout_width="match_parent"
             android:layout_height="56dp"

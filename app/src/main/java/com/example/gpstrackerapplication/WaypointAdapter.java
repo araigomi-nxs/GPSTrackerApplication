@@ -15,6 +15,8 @@ import androidx.annotation.Nullable;
 import com.example.gpstrackerapplication.database.DatabaseHelper;
 import com.example.gpstrackerapplication.models.Waypoint;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -38,6 +40,7 @@ public class WaypointAdapter extends ArrayAdapter<Waypoint> {
 
         TextView tvIndex = convertView.findViewById(R.id.tv_index);
         TextView tvCoords = convertView.findViewById(R.id.tv_wp_coords);
+        TextView tvTime = convertView.findViewById(R.id.tv_wp_time);
         ImageButton btnDelete = convertView.findViewById(R.id.btn_delete_waypoint);
 
         if (waypoint != null) {
@@ -45,6 +48,9 @@ public class WaypointAdapter extends ArrayAdapter<Waypoint> {
             String coords = String.format(Locale.getDefault(), "%.6f° N, %.6f° E", 
                     waypoint.getLocation().getLatitude(), waypoint.getLocation().getLongitude());
             tvCoords.setText(coords);
+
+            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+            tvTime.setText(sdf.format(new Date(waypoint.getTime())));
 
             btnDelete.setOnClickListener(new View.OnClickListener() {
                 @Override

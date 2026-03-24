@@ -5,7 +5,11 @@
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".MyApplication"
@@ -23,12 +27,24 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyC5q33v5Zr417P3D59xbwt7XiSs5KAClRQ" />
 
+        <service
+            android:name=".LocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <activity
             android:name=".MapsActivity"
             android:exported="false"
             android:label="@string/title_activity_maps" />
         <activity
             android:name=".SavedLocationList"
+            android:exported="false" />
+        <activity
+            android:name=".RouteListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".RouteMapActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"

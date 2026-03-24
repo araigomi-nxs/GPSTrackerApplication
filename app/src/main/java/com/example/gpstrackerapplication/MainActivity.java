@@ -1,13 +1,15 @@
 package com.example.gpstrackerapplication;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Address;
-import android.location.Geocoder;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -16,18 +18,14 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.gpstrackerapplication.database.DatabaseHelper;
 import com.example.gpstrackerapplication.integration.DiscordWebhook;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.text.SimpleDateFormat;
@@ -36,26 +34,28 @@ import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PERMISSION_FINE_LOCATION = 99;
+    private static final int PERMISSION_REQUEST_CODE = 100;
+    
     TextView tv_lat, tv_lon, tv_altitude, tv_accuracy, tv_speed, tv_sensor, tv_updates, tv_address, tv_wp, tv_discord_status, tv_time;
-    Button bt_wp, bt_showp, bt_showmap;
+    Button bt_wp, bt_showp, bt_showmap, bt_close_app, bt_route_list;
     SwitchMaterial sw_locationupdates, sw_gps, sw_discord;
 
-    private static final int DEFAULT_UPDATE_INTERVAL = 5;
-    private static final int FASTEST_UPDATE_INTERVAL = 2;
-
-
     Location currentLocation;
-
-    LocationRequest locationRequest;
-    LocationCallback locationCallback;
-    FusedLocationProviderClient fusedLocationProviderClient;
-
     private DiscordWebhook discordWebhook;
     private static final String DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1483553823980257330/YNA4dBeRu_Q3ILbj2-cT6ep1eq6Wi9EdRo8g7uCt2POnamQ4oRtt7Be8Q27h75ZLtNES";
-
-    // SQLite Database
     private DatabaseHelper databaseHelper;
+
+    private final BroadcastReceiver locationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if ("LocationUpdate".equals(intent.getAction())) {
+                Location location = intent.getParcelableExtra("location");
+                if (location != null) {
+                    updateUComponents(location);
+                }
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,129 +79,118 @@ public class MainActivity extends AppCompatActivity {
         tv_time = findViewById(R.id.tv_time);
         sw_locationupdates = findViewById(R.id.sw_locationsupdates);
         sw_gps = findViewById(R.id.sw_gps);
-        
         sw_discord = findViewById(R.id.sw_discord);
         tv_discord_status = findViewById(R.id.tv_discord_status);
-
         tv_wp = findViewById(R.id.tv_wp);
         bt_wp = findViewById(R.id.bt_wp);
         bt_showp = findViewById(R.id.bt_showp);
         bt_showmap = findViewById(R.id.bt_showmap);
+        bt_close_app = findViewById(R.id.bt_close_app);
+        bt_route_list = findViewById(R.id.bt_route_list);
 
         discordWebhook = new DiscordWebhook(DISCORD_WEBHOOK_URL);
         databaseHelper = new DatabaseHelper(MainActivity.this);
 
-        locationRequest = buildLocationRequest(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(com.google.android.gms.location.LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-                Location location = locationResult.getLastLocation();
-                if (location != null) {
-                    updateUComponents(location);
-                    
-                    if (sw_discord.isChecked()) {
-                        discordWebhook.sendLocation(
-                                location.getLatitude(),
-                                location.getLongitude(),
-                                tv_address.getText().toString()
-                        );
-                    }
+        bt_wp.setOnClickListener(v -> {
+            if (currentLocation != null) {
+                if (databaseHelper.addOne(currentLocation)) {
+                    Toast.makeText(MainActivity.this, "Location saved", Toast.LENGTH_SHORT).show();
+                    tv_wp.setText(String.valueOf(databaseHelper.getCount()));
                 }
-            }
-        };
-
-        bt_wp.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (currentLocation != null) {
-                    // Save to SQLite
-                    boolean success = databaseHelper.addOne(currentLocation);
-                    if (success) {
-                        Toast.makeText(MainActivity.this, "Location saved to Database", Toast.LENGTH_SHORT).show();
-                    }
-                    
-                    updateUComponents(currentLocation);
-                } else {
-                    Toast.makeText(MainActivity.this, "Location not available", Toast.LENGTH_SHORT).show();
-                }
+            } else {
+                Toast.makeText(MainActivity.this, "Location not available", Toast.LENGTH_SHORT).show();
             }
         });
 
-        bt_showp.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, SavedLocationList.class);
-                startActivity(intent);
+        bt_showp.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, SavedLocationList.class)));
+        bt_showmap.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, MapsActivity.class)));
+        bt_route_list.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, RouteListActivity.class)));
+
+        bt_close_app.setOnClickListener(v -> {
+            stopLocationService();
+            finishAffinity();
+        });
+
+        sw_gps.setOnClickListener(v -> {
+            int priority = sw_gps.isChecked() ? Priority.PRIORITY_HIGH_ACCURACY : Priority.PRIORITY_BALANCED_POWER_ACCURACY;
+            tv_sensor.setText(sw_gps.isChecked() ? "Using GPS" : "Using Towers + Wifi");
+            
+            Intent intent = new Intent(this, LocationService.class);
+            intent.putExtra("priority", priority);
+            if (sw_locationupdates.isChecked()) {
+                startForegroundService(intent);
             }
         });
 
-        bt_showmap.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
-                startActivity(intent);
+        sw_locationupdates.setOnClickListener(v -> {
+            if (sw_locationupdates.isChecked()) {
+                checkPermissionsAndStartService();
+            } else {
+                stopLocationService();
             }
         });
 
-        sw_gps.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (sw_gps.isChecked()) {
-                    locationRequest = buildLocationRequest(Priority.PRIORITY_HIGH_ACCURACY);
-                    tv_sensor.setText("Using GPS");
-                } else {
-                    locationRequest = buildLocationRequest(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
-                    tv_sensor.setText("Using Towers + Wifi");
-                }
-                
-                if (sw_locationupdates.isChecked()) {
-                    stopLocationUpdates();
-                    startLocationUpdates();
-                }
+        sw_discord.setOnClickListener(v -> {
+            boolean isChecked = sw_discord.isChecked();
+            tv_discord_status.setText(isChecked ? "On" : "Off");
+            
+            Intent intent = new Intent(this, LocationService.class);
+            intent.putExtra("discord_enabled", isChecked);
+            if (sw_locationupdates.isChecked()) {
+                startForegroundService(intent);
+            }
+
+            if (isChecked) {
+                discordWebhook.sendMessage("🟢 **Discord Integration Enabled**");
+            } else {
+                discordWebhook.sendMessage("🔴 **Discord Integration Disabled**");
             }
         });
 
-        sw_locationupdates.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (sw_locationupdates.isChecked()) {
-                    startLocationUpdates();
-                } else {
-                    stopLocationUpdates();
-                }
-            }
-        });
-        
-        sw_discord.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (sw_discord.isChecked()) {
-                    tv_discord_status.setText("On");
-                    discordWebhook.sendMessage("🟢 **Discord Integration Enabled**\nLocation updates will now be sent to this channel.");
-                } else {
-                    tv_discord_status.setText("Off");
-                    discordWebhook.sendMessage("🔴 **Discord Integration Disabled**\nLocation updates have been paused.");
-                }
-            }
-        });
-
-        updateGPS();
+        tv_wp.setText(String.valueOf(databaseHelper.getCount()));
     }
-    
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Update counter when returning from other activities
-        if (currentLocation != null) {
-            updateUComponents(currentLocation);
+
+    private void checkPermissionsAndStartService() {
+        String[] permissions;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions = new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.POST_NOTIFICATIONS
+            };
         } else {
-            tv_wp.setText(String.valueOf(databaseHelper.getCount()));
+            permissions = new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
+        }
+
+        boolean allGranted = true;
+        for (String p : permissions) {
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+
+        if (allGranted) {
+            startLocationService();
+        } else {
+            ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
         }
     }
 
-    private void stopLocationUpdates() {
+    private void startLocationService() {
+        tv_updates.setText("On");
+        Intent intent = new Intent(this, LocationService.class);
+        intent.putExtra("discord_enabled", sw_discord.isChecked());
+        intent.putExtra("priority", sw_gps.isChecked() ? Priority.PRIORITY_HIGH_ACCURACY : Priority.PRIORITY_BALANCED_POWER_ACCURACY);
+        startForegroundService(intent);
+    }
+
+    private void stopLocationService() {
         tv_updates.setText("Off");
+        stopService(new Intent(this, LocationService.class));
+        resetUI();
+    }
+
+    private void resetUI() {
         tv_lat.setText("NTL");
         tv_lon.setText("NTL");
         tv_altitude.setText("NTL");
@@ -209,100 +198,59 @@ public class MainActivity extends AppCompatActivity {
         tv_speed.setText("NTL");
         tv_address.setText("NTL");
         tv_time.setText("—:—");
-
-        if (fusedLocationProviderClient != null) {
-            fusedLocationProviderClient.removeLocationUpdates(locationCallback);
-        }
     }
 
-    private void startLocationUpdates() {
-        tv_updates.setText("On");
-        if (ActivityCompat.checkSelfPermission(MainActivity.this,
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationProviderClient.requestLocationUpdates(
-                    locationRequest, locationCallback, getMainLooper()
-            );
+    @Override
+    protected void onResume() {
+        super.onResume();
+        IntentFilter filter = new IntentFilter("LocationUpdate");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(locationReceiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(locationReceiver, filter);
         }
-        updateGPS();
+        tv_wp.setText(String.valueOf(databaseHelper.getCount()));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(locationReceiver);
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PERMISSION_FINE_LOCATION:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show();
-                    updateGPS();
-                } else {
-                    Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startLocationService();
+            } else {
+                sw_locationupdates.setChecked(false);
+                Toast.makeText(this, "Permission required for tracking", Toast.LENGTH_SHORT).show();
+            }
         }
-    }
-
-    private void updateGPS() {
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationProviderClient.getLastLocation().addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
-                @Override
-                public void onSuccess(Location location) {
-                    if (location != null) {
-                        updateUComponents(location);
-                        currentLocation = location;
-                    } else {
-                        tv_lat.setText("Location not available");
-                    }
-                }
-            });
-        } else {
-            ActivityCompat.requestPermissions(
-                    MainActivity.this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    PERMISSION_FINE_LOCATION
-            );
-        }
-    }
-
-    private LocationRequest buildLocationRequest(int priority) {
-        return new LocationRequest.Builder(priority, 1000L * DEFAULT_UPDATE_INTERVAL)
-                .setMinUpdateIntervalMillis(1000L * FASTEST_UPDATE_INTERVAL)
-                .build();
     }
 
     private void updateUComponents(Location location) {
         currentLocation = location;
-        tv_lat.setText(String.valueOf(location.getLatitude()));
-        tv_lon.setText(String.valueOf(location.getLongitude()));
+        tv_lat.setText(String.format(Locale.getDefault(), "%.6f", location.getLatitude()));
+        tv_lon.setText(String.format(Locale.getDefault(), "%.6f", location.getLongitude()));
+        tv_altitude.setText(location.hasAltitude() ? String.format(Locale.getDefault(), "%.2f", location.getAltitude()) : "N/A");
+        tv_speed.setText(location.hasSpeed() ? String.format(Locale.getDefault(), "%.2f", location.getSpeed()) : "N/A");
+        tv_accuracy.setText(String.format(Locale.getDefault(), "%.2f", location.getAccuracy()));
 
-        if (location.hasAltitude()) {
-            tv_altitude.setText(String.valueOf(location.getAltitude()));
-        } else {
-            tv_altitude.setText("N/A");
-        }
-        if (location.hasSpeed()) {
-            tv_speed.setText(String.valueOf(location.getSpeed()));
-        } else {
-            tv_speed.setText("N/A");
-        }
+        // Geocoding in background
+        new Thread(() -> {
+            try {
+                android.location.Geocoder geocoder = new android.location.Geocoder(MainActivity.this, Locale.getDefault());
+                List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+                if (addresses != null && !addresses.isEmpty()) {
+                    String addr = addresses.get(0).getAddressLine(0);
+                    runOnUiThread(() -> tv_address.setText(addr));
+                }
+            } catch (Exception ignored) {}
+        }).start();
 
-        tv_accuracy.setText(String.valueOf(location.getAccuracy()));
-
-        Geocoder geocoder = new Geocoder(this);
-        try {
-            List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
-            if (addresses != null && !addresses.isEmpty()) {
-                tv_address.setText(addresses.get(0).getAddressLine(0));
-            }
-        } catch (Exception e) {
-            tv_address.setText("N/A");
-        }
-
-        // Update time
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-        String currentTime = sdf.format(new Date(location.getTime()));
-        tv_time.setText(currentTime);
-
-        tv_wp.setText(String.valueOf(databaseHelper.getCount()));
+        tv_time.setText(new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date(location.getTime())));
     }
 }

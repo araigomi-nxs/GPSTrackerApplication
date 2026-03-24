@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#060C18"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="50dp"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="monospace"
+        android:letterSpacing="0.2"
+        android:text="ROUTE COLLECTION"
+        android:textColor="#FF9800"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <ListView
+        android:id="@+id/lv_routes"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="10dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/bt_record_route"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="50dp"
+        android:letterSpacing="0.05"
+        android:text="Start Recording Route"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:backgroundTint="#FF9800"
+        app:cornerRadius="16dp"
+        app:elevation="0dp" />
+
+</LinearLayout>
